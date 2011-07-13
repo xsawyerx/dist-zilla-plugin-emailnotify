@@ -48,8 +48,7 @@ sub _build_to {
     $self->has_recipient
         or die "Must provide 'recipient' or 'to'\n";
 
-    my $recipient_list = join ', ', @{ $self->recipient };
-    return $recipient_list;
+    return join ', ', @{ $self->recipient };
 }
 
 sub release {
@@ -134,25 +133,28 @@ Any BCC you may want. This should be comma separated.
 
 =head1 ATTRIBUTES
 
-=head2 to
+=head2 to(Str)
 
-Single 'to' field string.
+The 'to' email field.
 
-=head2 recipient
+=head2 recipient(ArrayRef[Str])
 
-ArrayRef of strings which will later compose the 'to' field string.
+This array reference of strings will be used to compose the 'to' email field.
 
-=head2 from
+It is used in case you want to comfortably write down the recipients instead of
+one long string. This is not provided for other fields.
 
-Single 'from' field string.
+=head2 from(Str)
 
-=head2 cc
+The 'from' email field.
 
-Single 'cc' field string.
+=head2 cc(Str)
 
-=head2 bcc
+The 'cc' email field.
 
-Single 'bcc' field string.
+=head2 bcc(Str)
+
+The 'bcc' email field.
 
 =head1 METHODS/SUBROUTINES
 
@@ -168,5 +170,5 @@ string.
 
 =head2 mvp_multivalue_args
 
-Internal, L<MVP> related. Creates a multivalue argument.
+Internal, L<Config::MVP> related. Creates a multivalue argument.
 
