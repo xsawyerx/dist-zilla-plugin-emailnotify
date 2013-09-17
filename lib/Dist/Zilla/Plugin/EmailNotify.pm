@@ -4,9 +4,10 @@ package Dist::Zilla::Plugin::EmailNotify;
 # ABSTRACT: send an email on dist release
 
 use Moose;
-with 'Dist::Zilla::Role::Releaser';
+with 'Dist::Zilla::Role::AfterRelease';
 
 use Email::Stuff;
+use CPAN::Changes;
 
 use namespace::autoclean;
 
@@ -40,6 +41,12 @@ has bcc => (
     default => sub { [] },
 );
 
+has change_file => (
+    is       => 'ro',
+    isa      => 'Str',
+    default => 'Changes',
+);
+
 sub mvp_multivalue_args { qw/recipient cc bcc/ }
 
 sub _build_to {
@@ -51,7 +58,7 @@ sub _build_to {
     return join ', ', @{ $self->recipient };
 }
 
-sub release {
+sub after_release {
     my $self    = shift;
     my $archive = shift;
     my $name    = $self->zilla->name;
@@ -63,21 +70,36 @@ sub release {
     my $authors = join '', map { "  - $_\n" } @{ $self->zilla->authors };
 
     $name =~ s/\.tar\.gz$//;
+    my $v = $self->zilla->version;
+
+    #  skip mail for developer's version
+    if ($v =~ /_/) {
+        $self->log("No e-mail sent for a developer release") ;
+        return 1 ;
+    }
+
+    my $changes = CPAN::Changes->load($self->change_file) ;
+    my @releases = $changes->releases;
+    my $last_change = $releases[-1]->serialize;
 
     my $text_body = <<"    _END_TEXT";
-A new version of $name is available!
+New version $v of $name is available with the following changes:
+
+$last_change
 
 Authors:
 $authors
     _END_TEXT
 
-    my $email = Email::Stuff->subject("$archive released!")
+    my $email = Email::Stuff->subject("$name $v released!")
                             ->from($from)
                             ->to($to)
                             ->text_body($text_body);
 
     $cc  and $email->cc($cc);
     $bcc and $email->bcc($bcc);
+
+    $self->log("Sending release email to $to") ;
 
     return $email->send;
 }
@@ -92,6 +114,10 @@ __END__
 =head1 DESCRIPTION
 
 This plugin allows to send an email when releasing.
+
+If you're using plugin that alter Changes file after release (like
+C<NextRelease>), be sure to specify C<[EmailNotify]> B<after>
+the specification of these plugins.
 
 =head1 FIELDS
 
@@ -158,10 +184,11 @@ The 'bcc' email field.
 
 =head1 METHODS/SUBROUTINES
 
-=head2 release
+=head2 after_release
 
-Method to actually do the 'release' process. Takes all the arguments, defines
-a body message text and sends the email using L<Email::Stuff>.
+Method to actually send the email right after the 'release' process.
+Takes all the arguments, creates a body message text using last change
+log entry and sends the email using L<Email::Stuff>.
 
 =head2 _build_to
 
