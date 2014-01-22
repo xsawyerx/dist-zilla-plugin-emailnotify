@@ -7,7 +7,7 @@ use Moose;
 with 'Dist::Zilla::Role::AfterRelease';
 
 use Email::Stuff;
-use CPAN::Changes;
+use IO::File;
 
 use namespace::autoclean;
 
@@ -78,9 +78,7 @@ sub after_release {
         return 1 ;
     }
 
-    my $changes = CPAN::Changes->load($self->change_file) ;
-    my @releases = $changes->releases;
-    my $last_change = $releases[-1]->serialize;
+    my $last_change = $self->extract_last_release($self->change_file);
 
     my $text_body = <<"    _END_TEXT";
 New version $v of $name is available with the following changes:
@@ -90,6 +88,8 @@ $last_change
 Authors:
 $authors
     _END_TEXT
+
+    $self->log($text_body);
 
     my $email = Email::Stuff->subject("$name $v released!")
                             ->from($from)
@@ -104,6 +104,35 @@ $authors
     return $email->send;
 }
 
+sub extract_last_release {
+    my $self = shift;
+    my $file = shift;
+
+    my $fh = IO::File->new;
+    $fh->open($file, 'r') ;
+
+    my $preamble = '';
+    while (my $l = $fh->getline ) {
+        last if $l =~ /^\w/ ; # first release line, preamble is done
+        $preamble .= $l;
+    } ;
+
+    my $changes = '';
+    while (my $l = $fh->getline ) {
+        if ($l =~ /^\s/ or $l =~ /^$/) {
+            # not at a release line
+            $changes .= $l;
+        }
+        elsif ($changes =~ /\w/ and $l =~ /^[\d\.]+\s+/) {
+            # quit if I have change info and a release
+            last;
+        };
+    } ;
+    $fh->close;
+    return $changes;
+}
+
+
 __PACKAGE__->meta->make_immutable;
 no Moose;
 
@@ -114,10 +143,6 @@ __END__
 =head1 DESCRIPTION
 
 This plugin allows to send an email when releasing.
-
-If you're using plugin that alter Changes file after release (like
-C<NextRelease>), be sure to specify C<[EmailNotify]> B<after>
-the specification of these plugins.
 
 =head1 FIELDS
 
