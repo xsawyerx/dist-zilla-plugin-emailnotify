@@ -6,7 +6,7 @@ package Dist::Zilla::Plugin::EmailNotify;
 use Moose;
 with 'Dist::Zilla::Role::AfterRelease';
 
-use Email::Stuff;
+use Email::Stuffer;
 use IO::File;
 
 use namespace::autoclean;
@@ -91,10 +91,11 @@ $authors
 
     $self->log($text_body);
 
-    my $email = Email::Stuff->subject("$name $v released!")
-                            ->from($from)
-                            ->to($to)
-                            ->text_body($text_body);
+    my $email
+	  = Email::Stuffer->subject("$name $v released!")
+	  ->from($from)
+	  ->to($to)
+	  ->text_body($text_body);
 
     $cc  and $email->cc($cc);
     $bcc and $email->bcc($bcc);
