@@ -64,10 +64,8 @@ sub after_release {
     my $name    = $self->zilla->name;
     my $to      = $self->to;
     my $from    = $self->from;
-    my @authors = @{ $self->zilla->authors };
     my $cc      = join ', ', @{ $self->cc  };
     my $bcc     = join ', ', @{ $self->bcc };
-    my $authors = join '', map { "  - $_\n" } @{ $self->zilla->authors };
 
     $name =~ s/\.tar\.gz$//;
     my $v = $self->zilla->version;
@@ -78,17 +76,20 @@ sub after_release {
         return 1 ;
     }
 
-    my $last_change = $self->extract_last_release($self->change_file);
+    my @body ;
+    push @body, "New version $v of $name is available with the following changes:";
+    push @body, '', $self->extract_last_release($self->change_file);
 
-    my $text_body = <<"    _END_TEXT";
-New version $v of $name is available with the following changes:
+    my $res = $self->zilla->plugin_named('MetaResources')->resources
+        || die "internal error";
 
-$last_change
+    my $repo = $res->{repository} ;
+    push @body,'', "Homepage: ".$res->{homepage} if $res->{homepage} ;
+    push @body,"Repository: ".$repo->{web} if $repo->{web};
 
-Authors:
-$authors
-    _END_TEXT
+    push @body,'', "Authors:", map { "  - $_"} @{ $self->zilla->authors };
 
+    my $text_body = join("\n",@body);
     $self->log($text_body);
 
     my $email
@@ -118,19 +119,25 @@ sub extract_last_release {
         $preamble .= $l;
     } ;
 
-    my $changes = '';
+    my @changes ;
     while (my $l = $fh->getline ) {
+        chomp $l;
         if ($l =~ /^\s/ or $l =~ /^$/) {
             # not at a release line
-            $changes .= $l;
+            push @changes, $l;
         }
-        elsif ($changes =~ /\w/ and $l =~ /^[\d\.]+\s+/) {
+        elsif (join('',@changes) =~ /\w/ and $l =~ /^[\d\.]+\s+/) {
             # quit if I have change info and a release
             last;
         };
     } ;
     $fh->close;
-    return $changes;
+
+    # remove empty line from beginning and end of change lines
+    shift @changes while not $changes[0] ;
+    pop   @changes while not $changes[-1];
+
+    return @changes;
 }
 
 
