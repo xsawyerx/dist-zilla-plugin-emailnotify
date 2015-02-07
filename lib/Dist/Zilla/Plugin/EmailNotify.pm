@@ -4,9 +4,10 @@ package Dist::Zilla::Plugin::EmailNotify;
 # ABSTRACT: send an email on dist release
 
 use Moose;
-with 'Dist::Zilla::Role::Releaser';
+with 'Dist::Zilla::Role::AfterRelease';
 
-use Email::Stuff;
+use Email::Stuffer;
+use IO::File;
 
 use namespace::autoclean;
 
@@ -40,6 +41,12 @@ has bcc => (
     default => sub { [] },
 );
 
+has change_file => (
+    is       => 'ro',
+    isa      => 'Str',
+    default => 'Changes',
+);
+
 sub mvp_multivalue_args { qw/recipient cc bcc/ }
 
 sub _build_to {
@@ -51,36 +58,88 @@ sub _build_to {
     return join ', ', @{ $self->recipient };
 }
 
-sub release {
+sub after_release {
     my $self    = shift;
     my $archive = shift;
     my $name    = $self->zilla->name;
     my $to      = $self->to;
     my $from    = $self->from;
-    my @authors = @{ $self->zilla->authors };
     my $cc      = join ', ', @{ $self->cc  };
     my $bcc     = join ', ', @{ $self->bcc };
-    my $authors = join '', map { "  - $_\n" } @{ $self->zilla->authors };
 
     $name =~ s/\.tar\.gz$//;
+    my $v = $self->zilla->version;
 
-    my $text_body = <<"    _END_TEXT";
-A new version of $name is available!
+    #  skip mail for developer's version
+    if ($v =~ /_/) {
+        $self->log("No e-mail sent for a developer release") ;
+        return 1 ;
+    }
 
-Authors:
-$authors
-    _END_TEXT
+    my @body ;
+    push @body, "New version $v of $name is available with the following changes:";
+    push @body, '', $self->extract_last_release($self->change_file);
 
-    my $email = Email::Stuff->subject("$archive released!")
-                            ->from($from)
-                            ->to($to)
-                            ->text_body($text_body);
+    my $res = $self->zilla->plugin_named('MetaResources')->resources
+        || die "internal error";
+
+    my $repo = $res->{repository} ;
+    push @body,'', "Homepage: ".$res->{homepage} if $res->{homepage} ;
+    push @body,"Repository: ".$repo->{web} if $repo->{web};
+
+    push @body,'', "Authors:", map { "  - $_"} @{ $self->zilla->authors };
+
+    my $text_body = join("\n",@body);
+    $self->log($text_body);
+
+    my $email
+	  = Email::Stuffer->subject("$name $v released!")
+	  ->from($from)
+	  ->to($to)
+	  ->text_body($text_body);
 
     $cc  and $email->cc($cc);
     $bcc and $email->bcc($bcc);
 
+    $self->log("Sending release email to $to") ;
+
     return $email->send;
 }
+
+sub extract_last_release {
+    my $self = shift;
+    my $file = shift;
+
+    my $fh = IO::File->new;
+    $fh->open($file, 'r') ;
+
+    my $preamble = '';
+    while (my $l = $fh->getline ) {
+        last if $l =~ /^\w/ ; # first release line, preamble is done
+        $preamble .= $l;
+    } ;
+
+    my @changes ;
+    while (my $l = $fh->getline ) {
+        chomp $l;
+        if ($l =~ /^\s/ or $l =~ /^$/) {
+            # not at a release line
+            push @changes, $l;
+        }
+        elsif (join('',@changes) =~ /\w/ and $l =~ /^[\d\.]+\s+/) {
+            # quit if I have change info and a release
+            last;
+        };
+    } ;
+    $fh->close;
+
+    # remove empty line from beginning and end of change lines
+    shift @changes while not $changes[0] ;
+    pop   @changes while not $changes[-1];
+
+    return @changes;
+}
+
 
 __PACKAGE__->meta->make_immutable;
 no Moose;
@@ -158,10 +217,11 @@ The 'bcc' email field.
 
 =head1 METHODS/SUBROUTINES
 
-=head2 release
+=head2 after_release
 
-Method to actually do the 'release' process. Takes all the arguments, defines
-a body message text and sends the email using L<Email::Stuff>.
+Method to actually send the email right after the 'release' process.
+Takes all the arguments, creates a body message text using last change
+log entry and sends the email using L<Email::Stuff>.
 
 =head2 _build_to
 
