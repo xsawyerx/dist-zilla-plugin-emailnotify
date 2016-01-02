@@ -1,4 +1,6 @@
 0.004
+        * Use the correct way of retrieving distribution metadata.
+          (Thanks, Karen Etheridge!)
         * Improved grammar.
           (Thanks, Gregor Herrmann and Debian packagers!)
         * Remove Module::Build as an installer.
