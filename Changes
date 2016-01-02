@@ -1,4 +1,6 @@
 0.004
+        * Improved grammar.
+          (Thanks, Gregor Herrmann and Debian packagers!)
         * No need for two declared installers in packaging.
           (Thanks, Karen Etheridge!)
 
