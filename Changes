@@ -1,3 +1,7 @@
+0.004
+        * No need for two declared installers in packaging.
+          (Thanks, Karen Etheridge!)
+
 0.003   07.02.15
         * Provide more information (last log entry, authors, etc.)
           (Dominique Dumont - great job!)
