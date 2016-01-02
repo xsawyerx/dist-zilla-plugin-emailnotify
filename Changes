@@ -1,4 +1,4 @@
-0.004
+0.004   02.01.15
         * Use the correct way of retrieving distribution metadata.
           (Thanks, Karen Etheridge!)
         * Declare appropriate bugtracker.
