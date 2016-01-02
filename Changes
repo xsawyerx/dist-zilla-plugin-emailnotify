@@ -7,6 +7,7 @@
           (Thanks, Gregor Herrmann and Debian packagers!)
         * Remove Module::Build as an installer.
           (Thanks, Karen Etheridge!)
+        * Move license to MIT.
 
 0.003   07.02.15
         * Provide more information (last log entry, authors, etc.)
