@@ -80,7 +80,7 @@ sub after_release {
     push @body, "New version $v of $name is available with the following changes:";
     push @body, '', $self->extract_last_release($self->change_file);
 
-    my $res = $self->zilla->plugin_named('MetaResources')->resources
+    my $res = $self->zilla->distmeta
         || die "internal error";
 
     my $repo = $res->{repository} ;
