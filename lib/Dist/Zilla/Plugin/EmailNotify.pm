@@ -150,7 +150,7 @@ __END__
 
 =head1 DESCRIPTION
 
-This plugin allows to send an email when releasing.
+This plugin allows one to send an email when releasing.
 
 =head1 FIELDS
 
